@@ -1,0 +1,35 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      # Generates WeatherApp.xcodeproj from project.yml, so you never
+      # have to upload an .xcodeproj package through the browser.
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build for iOS Simulator
+        run: |
+          xcodebuild \
+            -project WeatherApp.xcodeproj \
+            -scheme WeatherApp \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            clean build \
+            CODE_SIGNING_ALLOWED=NO
