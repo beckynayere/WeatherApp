@@ -15,19 +15,40 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      # Generates WeatherApp.xcodeproj from project.yml, so you never
-      # have to upload an .xcodeproj package through the browser.
+      - name: List repo contents
+        run: |
+          echo "==> Files in the repo:"
+          find . -not -path "*/.git/*" | sort
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Generate Xcode project
-        run: xcodegen generate
-
-      - name: Build for iOS Simulator
+      - name: Generate project and build
         run: |
+          set -e
+
+          # Find the XcodeGen spec no matter its name/case or folder
+          SPEC=$(find . -not -path "*/.git/*" \( -iname "project.yml" -o -iname "project.yaml" \) | head -n 1)
+          if [ -z "$SPEC" ]; then
+            echo "::error::No project.yml found anywhere in the repo. Check the file list above — it must be a plain text file named project.yml."
+            exit 1
+          fi
+          echo "==> Using spec: $SPEC"
+
+          cd "$(dirname "$SPEC")"
+          xcodegen generate --spec "$(basename "$SPEC")"
+
+          PROJ=$(find . -maxdepth 1 -name "*.xcodeproj" | head -n 1)
+          if [ -z "$PROJ" ]; then
+            echo "::error::XcodeGen ran but produced no .xcodeproj."
+            exit 1
+          fi
+          SCHEME=$(basename "$PROJ" .xcodeproj)
+          echo "==> Building project: $PROJ  (scheme: $SCHEME)"
+
           xcodebuild \
-            -project WeatherApp.xcodeproj \
-            -scheme WeatherApp \
+            -project "$PROJ" \
+            -scheme "$SCHEME" \
             -sdk iphonesimulator \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
